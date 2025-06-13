@@ -3,4 +3,6 @@
 .env.local
 .env.*
 # Ignore node_modules
-node_modules/ 
+node_modules/
+# Ignore Next.js build output
+.next/ 
