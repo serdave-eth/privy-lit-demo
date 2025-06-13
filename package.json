@@ -1,0 +1,39 @@
+{
+  "name": "privy-lit-demo",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/serdave-eth/privy-lit-demo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/serdave-eth/privy-lit-demo/issues"
+  },
+  "homepage": "https://github.com/serdave-eth/privy-lit-demo#readme",
+  "dependencies": {
+    "@lit-protocol/auth-browser": "^7.2.0",
+    "@privy-io/react-auth": "^2.14.2",
+    "next": "^14.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "viem": "^2.31.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "autoprefixer": "^10.4.17",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.0"
+  }
+}
