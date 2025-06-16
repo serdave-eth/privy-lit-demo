@@ -6,20 +6,26 @@ import {
 import { LIT_ABILITY } from "@lit-protocol/constants";
 import { LitNodeClient } from "@lit-protocol/lit-node-client";
 import { ethers } from "ethers";
+import { LIT_NETWORK } from "@lit-protocol/constants";
+import { LIT_NETWORKS_KEYS } from "@lit-protocol/types";
 
 export async function getSessionSignatures({
-  litNodeClient,
   chain,
   capacityDelegationAuthSig,
   signer,
 }: {
-  litNodeClient: LitNodeClient;
   chain: string;
   capacityDelegationAuthSig?: any;
   signer: ethers.Signer;
 }) {
 
-  // Get the latest blockhash
+    const litNodeClient = new LitNodeClient({
+        litNetwork: LIT_NETWORK.DatilDev as LIT_NETWORKS_KEYS,
+        debug: false,
+      });
+      await litNodeClient.connect();
+  
+    // Get the latest blockhash
   const latestBlockhash = await litNodeClient.getLatestBlockhash();
 
   // Define the authNeededCallback function
@@ -61,5 +67,9 @@ export async function getSessionSignatures({
     authNeededCallback,
     capacityDelegationAuthSig,
   });
-  return sessionSigs;
+
+  // disconnect the litNodeClient
+  await litNodeClient.disconnect();
+
+  return { sessionSigs };
 }

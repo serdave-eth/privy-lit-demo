@@ -21,6 +21,11 @@
   "homepage": "https://github.com/serdave-eth/privy-lit-demo#readme",
   "dependencies": {
     "@lit-protocol/auth-browser": "^7.2.0",
+    "@lit-protocol/auth-helpers": "^7.2.0",
+    "@lit-protocol/constants": "^7.2.0",
+    "@lit-protocol/encryption": "^7.2.0",
+    "@lit-protocol/lit-node-client": "^7.2.0",
+    "@lit-protocol/types": "^7.2.0",
     "@privy-io/react-auth": "^2.14.2",
     "ethers": "^5.8.0",
     "next": "^14.1.0",
