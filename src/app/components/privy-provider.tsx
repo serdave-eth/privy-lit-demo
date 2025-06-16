@@ -26,7 +26,7 @@ export const PrivyWrapper = ({ children }: PrivyWrapperProps) => {
         ethereum: {
           createOnLogin: "users-without-wallets",
         },
-        showWalletUIs: true,
+        showWalletUIs: false,
       },
       appearance: {
         theme: 'light',

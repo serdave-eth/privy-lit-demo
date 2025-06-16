@@ -250,13 +250,23 @@ export const authenticateLitSession = async (
   let authSig;
   try {
     if (debug) console.log("[DEBUG] Calling genAuthSig...");
-    authSig = await genAuthSig(
-      signer,
-      litNodeClient,
-      "https://www.keypo.io",
-      resources,
-    );
-    if (debug) console.log("[DEBUG] authSig:", authSig);
+    // Only get another authSig if conditions is of type AccessControlConditions[]
+    if (
+      Array.isArray(conditions) &&
+      conditions.length > 0 &&
+      // Check for a property unique to AccessControlConditions
+      (conditions[0] as any).conditionType === "evmBasic"
+    ) {
+      authSig = await genAuthSig(
+        signer,
+        litNodeClient,
+        "https://www.keypo.io",
+        resources,
+      );
+      if (debug) console.log("[DEBUG] authSig:", authSig);
+    } else {
+      authSig = null;
+    }
   } catch (err) {
     console.error("[DEBUG] Error in genAuthSig:", err);
     throw err;

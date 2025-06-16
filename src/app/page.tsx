@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { ConnectWalletButton } from './components/connect-wallet-button'
 import { useWallets, usePrivy } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
@@ -10,7 +11,9 @@ import { baseSepolia } from 'viem/chains';
 export default function Home() {
   const { wallets } = useWallets();
   const { authenticated, user } = usePrivy();
-  // Fallback to the first wallet in the array as active wallet
+  const [status, setStatus] = useState<"idle" | "setup" | "lit" | "decrypt" | "done">("idle");
+  const [decryptedData, setDecryptedData] = useState<string | null>(null);
+
   const userWallet = wallets.find(
     (wallet) => wallet.walletClientType === "privy"
   );
@@ -29,22 +32,22 @@ export default function Home() {
   ).toISOString();
 
   async function handleCustomButtonClick() {
+    setStatus("setup");
+    setDecryptedData(null);
+
     if (!userWallet) {
       console.error("No userWallet found");
+      setStatus("idle");
       return;
     }
-    console.log("Getting privy provider for ethers v5...");
+    // 1. Setting up privy wallet for ethers v5
     const privyProvider = await userWallet.getEthereumProvider();
     const ethersProvider = new ethers.providers.Web3Provider(privyProvider);
     const ethersSigner = ethersProvider.getSigner();
-    const chain = baseSepolia.id.toString();
-    console.log("chain", chain);
-    /*const { sessionSigs } = await getSessionSignatures({
-      chain,
-      signer: ethersSigner,
-    });
-    console.log("sessionSigs", sessionSigs);*/
 
+    setStatus("lit");
+    // 2. Getting lit session
+    const chain = baseSepolia.id.toString();
     const { sessionSigs, authSig, litNodeClient, dataToEncryptHash, evmConditions, dataMetadata } = await authenticateLitSession(
       ethersSigner,
       chain,
@@ -54,14 +57,9 @@ export default function Home() {
       apiUrl || "",
       true,
     );
-    console.log("sessionSigs", sessionSigs);
-    console.log("authSig", authSig);
-    console.log("litNodeClient", litNodeClient);
-    console.log("dataToEncryptHash", dataToEncryptHash);
-    console.log("evmConditions", evmConditions);
-    console.log("dataMetadata", dataMetadata);
 
-    // TODO: call decryption API endpoint
+    setStatus("decrypt");
+    // 3. Getting decrypted data
     const response = await fetch(`${apiUrl}/decryption`, {
       method: "POST",
       headers: {
@@ -72,9 +70,28 @@ export default function Home() {
           sessionSigs,
           dataMetadata: JSON.stringify(dataMetadata),
       })
-  });
-  const data = await response.json();
-  console.log("data", data);
+    });
+    const data = await response.json();
+    setDecryptedData(data.decryptedData || JSON.stringify(data));
+    setStatus("done");
+  }
+
+  function renderStatus() {
+    if (status === "setup") return <StatusStep text="Setting up privy wallet for ethers v5..." />;
+    if (status === "lit") return <StatusStep text="Getting Lit session..." />;
+    if (status === "decrypt") return <StatusStep text="Getting decrypted data..." />;
+    if (status === "done" && decryptedData)
+      return (
+        <div className="mt-6 p-4 bg-gray-100 rounded text-gray-800 max-w-xl break-words">
+          <strong>Decrypted Data:</strong>
+          <pre className="whitespace-pre-wrap">
+            {typeof decryptedData === "string"
+              ? decryptedData
+              : JSON.stringify(decryptedData, null, 2)}
+          </pre>
+        </div>
+      );
+    return null;
   }
 
   return (
@@ -89,11 +106,26 @@ export default function Home() {
           <button
             className="mt-4 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             onClick={handleCustomButtonClick}
+            disabled={status !== "idle" && status !== "done"}
           >
             Custom Action
           </button>
+          <div className="mt-6">{renderStatus()}</div>
         </>
       )}
     </main>
   )
+}
+
+// Simple status step animation (spinner + text)
+function StatusStep({ text }: { text: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <svg className="animate-spin h-5 w-5 text-blue-600" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+      </svg>
+      <span>{text}</span>
+    </div>
+  );
 } 
