@@ -6,7 +6,8 @@ import { useWallets, usePrivy } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
 //import { getSessionSignatures } from './utils/genSessionSigs';
 //import { authenticateLitSession } from './utils/getLitSession';
-import { authenticateLitSession } from 'keypo-sdk';
+//import { authenticateLitSession } from 'keypo-sdk';
+import { decrypt, type DecryptConfig, postProcess } from 'keypo-sdk';
 import { baseSepolia } from 'viem/chains';
 
 export default function Home() {
@@ -49,7 +50,7 @@ export default function Home() {
     setStatus("lit");
     // 2. Getting lit session
     const chain = baseSepolia.id.toString();
-    const { sessionSigs, authSig, litNodeClient, dataToEncryptHash, evmConditions, dataMetadata } = await authenticateLitSession(
+    /*const { sessionSigs, authSig, litNodeClient, dataToEncryptHash, evmConditions, dataMetadata } = await authenticateLitSession(
       ethersSigner,
       chain,
       ONE_HOUR_FROM_NOW,
@@ -57,11 +58,11 @@ export default function Home() {
       dataIdentifier || "",
       apiUrl || "",
       true,
-    );
+    );*/
 
     setStatus("decrypt");
     // 3. Getting decrypted data
-    const response = await fetch(`${apiUrl}/decryption`, {
+    /*const response = await fetch(`${apiUrl}/decryption`, {
       method: "POST",
       headers: {
           'Content-Type': 'application/json',
@@ -72,8 +73,22 @@ export default function Home() {
           dataMetadata: JSON.stringify(dataMetadata),
       })
     });
-    const data = await response.json();
-    setDecryptedData(data.decryptedData || JSON.stringify(data));
+    const data = await response.json();*/
+    const config: DecryptConfig = {
+      registryContractAddress: permissionsRegistryContractAddress || "",
+      chain,
+      apiUrl: apiUrl || "",
+      expiration: ONE_HOUR_FROM_NOW,
+    };
+    const { decryptedData, metadata } = await decrypt(
+      dataIdentifier || "",
+      ethersSigner,
+      config,
+      true
+    );
+    console.log("decryptedData", decryptedData);
+    const decryptedDataString = postProcess(decryptedData, metadata);
+    setDecryptedData(String(decryptedDataString));
     setStatus("done");
   }
 
