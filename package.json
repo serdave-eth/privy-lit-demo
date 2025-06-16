@@ -27,11 +27,12 @@
     "@lit-protocol/lit-node-client": "^7.2.0",
     "@lit-protocol/types": "^7.2.0",
     "@privy-io/react-auth": "^2.14.2",
+    "@zerodev/sdk": "^5.4.37",
     "ethers": "^5.8.0",
     "next": "^14.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "viem": "^2.31.2"
+    "viem": "^2.31.3"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

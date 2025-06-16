@@ -2,19 +2,24 @@
 
 import { useState } from 'react';
 import { ConnectWalletButton } from './components/connect-wallet-button'
-import { useWallets, usePrivy } from '@privy-io/react-auth';
+import { useWallets, usePrivy, useSignAuthorization } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
-//import { getSessionSignatures } from './utils/genSessionSigs';
-//import { authenticateLitSession } from './utils/getLitSession';
-//import { authenticateLitSession } from 'keypo-sdk';
-import { decrypt, type DecryptConfig, postProcess } from 'keypo-sdk';
+import { decrypt, type DecryptConfig, postProcess, preProcess, encrypt, type EncryptConfig } from 'keypo-sdk';
 import { baseSepolia } from 'viem/chains';
+import { getWalletClientAndAuthorization } from './utils/wallet-utils';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function Home() {
   const { wallets } = useWallets();
   const { authenticated, user } = usePrivy();
-  const [status, setStatus] = useState<"idle" | "setup" | "lit" | "decrypt" | "done">("idle");
-  const [decryptedData, setDecryptedData] = useState<string | null>(null);
+  const { signAuthorization } = useSignAuthorization();
+  const [uiState, setUiState] = useState({
+    status: "idle" as "idle" | "setup" | "lit" | "decrypt" | "done",
+    decryptedData: null as string | null,
+    encryptInput: "",
+    encryptDone: false,
+    decryptInput: "",
+  });
 
   const userWallet = wallets.find(
     (wallet) => wallet.walletClientType === "privy"
@@ -24,8 +29,10 @@ export default function Home() {
   const dataIdentifier = process.env.NEXT_PUBLIC_DATA_IDENTIFIER;
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   const permissionsRegistryContractAddress = process.env.NEXT_PUBLIC_REGISTRY_CONTRACT_ADDRESS;
+  const bundlerRpcUrl = process.env.NEXT_PUBLIC_BUNDLER_RPC_URL;
+  const permissionsValidatorAddress = process.env.NEXT_PUBLIC_VALIDATOR_CONTRACT_ADDRESS;
 
-  if (!dataIdentifier || !apiUrl || !permissionsRegistryContractAddress) {
+  if (!dataIdentifier || !apiUrl || !permissionsRegistryContractAddress || !bundlerRpcUrl || !permissionsValidatorAddress) {
     console.error("Missing environment variables");
     return;
   }
@@ -33,13 +40,13 @@ export default function Home() {
     Date.now() + 1000 * 60 * 60,
   ).toISOString();
 
-  async function handleCustomButtonClick() {
-    setStatus("setup");
-    setDecryptedData(null);
+  async function handleCustomButtonClick(decryptData: string) {
+    setUiState(prev => ({ ...prev, status: "setup", decryptedData: null }));
+    console.log("decryptData", decryptData);
 
     if (!userWallet) {
       console.error("No userWallet found");
-      setStatus("idle");
+      setUiState(prev => ({ ...prev, status: "idle" }));
       return;
     }
     // 1. Setting up privy wallet for ethers v5
@@ -47,63 +54,72 @@ export default function Home() {
     const ethersProvider = new ethers.providers.Web3Provider(privyProvider);
     const ethersSigner = ethersProvider.getSigner();
 
-    setStatus("lit");
+    setUiState(prev => ({ ...prev, status: "lit" }));
     // 2. Getting lit session
     const chain = baseSepolia.id.toString();
-    /*const { sessionSigs, authSig, litNodeClient, dataToEncryptHash, evmConditions, dataMetadata } = await authenticateLitSession(
-      ethersSigner,
-      chain,
-      ONE_HOUR_FROM_NOW,
-      permissionsRegistryContractAddress || "",
-      dataIdentifier || "",
-      apiUrl || "",
-      true,
-    );*/
 
-    setStatus("decrypt");
+    setUiState(prev => ({ ...prev, status: "decrypt" }));
     // 3. Getting decrypted data
-    /*const response = await fetch(`${apiUrl}/decryption`, {
-      method: "POST",
-      headers: {
-          'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-          dataIdentifier,
-          sessionSigs,
-          dataMetadata: JSON.stringify(dataMetadata),
-      })
-    });
-    const data = await response.json();*/
     const config: DecryptConfig = {
       registryContractAddress: permissionsRegistryContractAddress || "",
       chain,
-      apiUrl: apiUrl || "",
       expiration: ONE_HOUR_FROM_NOW,
+      apiUrl: apiUrl || "",
     };
     const { decryptedData, metadata } = await decrypt(
-      dataIdentifier || "",
+      decryptData || "",
       ethersSigner,
       config,
       true
     );
     console.log("decryptedData", decryptedData);
     const decryptedDataString = postProcess(decryptedData, metadata);
-    setDecryptedData(String(decryptedDataString));
-    setStatus("done");
+    setUiState(prev => ({ ...prev, status: "done", decryptedData: String(decryptedDataString) }));
+  }
+
+  async function handleEncrypt(encryptData: string) {
+    console.log("Encrypt input:", encryptData);
+    setUiState(prev => ({ ...prev, encryptDone: true }));
+    
+    const fileName = uuidv4();
+    const { dataOut, metadataOut } = await preProcess(
+      encryptData,
+      fileName,
+      false,
+      {"fileUseType": "key"}
+    );
+    const { walletClient, authorization } = await getWalletClientAndAuthorization(userWallet, signAuthorization);
+    // 3. Prepare encrypt config
+    const config: EncryptConfig = {
+      apiUrl: apiUrl || "",
+      validatorAddress: permissionsValidatorAddress || "",
+      registryContractAddress: permissionsRegistryContractAddress || "",
+      bundlerRpcUrl: bundlerRpcUrl || "",
+    };
+    // 4. Encrypt data
+    const result = await encrypt(
+      dataOut,
+      walletClient as any, // type cast to resolve viem Client type mismatch
+      metadataOut,
+      authorization,
+      config,
+      true
+    );
+    console.log("result", result);
   }
 
   function renderStatus() {
-    if (status === "setup") return <StatusStep text="Setting up privy wallet for ethers v5..." />;
-    if (status === "lit") return <StatusStep text="Getting Lit session..." />;
-    if (status === "decrypt") return <StatusStep text="Getting decrypted data..." />;
-    if (status === "done" && decryptedData)
+    if (uiState.status === "setup") return <StatusStep text="Setting up privy wallet for ethers v5..." />;
+    if (uiState.status === "lit") return <StatusStep text="Getting Lit session..." />;
+    if (uiState.status === "decrypt") return <StatusStep text="Getting decrypted data..." />;
+    if (uiState.status === "done" && uiState.decryptedData)
       return (
         <div className="mt-6 p-4 bg-gray-100 rounded text-gray-800 max-w-xl break-words">
           <strong>Decrypted Data:</strong>
           <pre className="whitespace-pre-wrap">
-            {typeof decryptedData === "string"
-              ? decryptedData
-              : JSON.stringify(decryptedData, null, 2)}
+            {typeof uiState.decryptedData === "string"
+              ? uiState.decryptedData
+              : JSON.stringify(uiState.decryptedData, null, 2)}
           </pre>
         </div>
       );
@@ -119,13 +135,42 @@ export default function Home() {
           <div className="mt-6 text-lg text-purple-700">
             Connected wallet: <span className="font-mono">{userWallet.address}</span>
           </div>
-          <button
-            className="mt-4 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            onClick={handleCustomButtonClick}
-            disabled={status !== "idle" && status !== "done"}
-          >
-            Custom Action
-          </button>
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <input
+              type="text"
+              className="border px-3 py-2 rounded w-64"
+              placeholder="Enter string to encrypt"
+              value={uiState.encryptInput}
+              onChange={e => setUiState(prev => ({ ...prev, encryptInput: e.target.value }))}
+              disabled={uiState.encryptDone}
+            />
+            <button
+              className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              onClick={() => handleEncrypt(uiState.encryptInput)}
+              disabled={uiState.encryptDone || !uiState.encryptInput}
+            >
+              Encrypt
+            </button>
+          </div>
+          {uiState.encryptDone && (
+            <div className="flex flex-col items-center gap-2 mt-4">
+              <input
+                type="text"
+                className="border px-3 py-2 rounded w-64"
+                placeholder="Enter string to decrypt"
+                value={uiState.decryptInput}
+                onChange={e => setUiState(prev => ({ ...prev, decryptInput: e.target.value }))}
+                disabled={uiState.status !== "idle" && uiState.status !== "done"}
+              />
+              <button
+                className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                onClick={() => handleCustomButtonClick(uiState.decryptInput)}
+                disabled={uiState.status !== "idle" && uiState.status !== "done" || !uiState.decryptInput}
+              >
+                Decrypt
+              </button>
+            </div>
+          )}
           <div className="mt-6">{renderStatus()}</div>
         </>
       )}
