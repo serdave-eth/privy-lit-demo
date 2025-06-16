@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { ConnectWalletButton } from './components/connect-wallet-button'
 import { useWallets, usePrivy } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
-import { getSessionSignatures } from './utils/genSessionSigs';
-import { authenticateLitSession } from './utils/getLitSession';
+//import { getSessionSignatures } from './utils/genSessionSigs';
+//import { authenticateLitSession } from './utils/getLitSession';
+import { authenticateLitSession } from 'keypo-sdk';
 import { baseSepolia } from 'viem/chains';
 
 export default function Home() {
