@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ConnectWalletButton } from './components/connect-wallet-button'
 import { useWallets, usePrivy, useSignAuthorization } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
-import { decrypt, type DecryptConfig, postProcess, preProcess, encrypt, type EncryptConfig } from 'keypo-sdk';
+import { decrypt, type DecryptConfig, postProcess, preProcess, encrypt, type EncryptConfig, type ShareConfig, shareData, deleteData, type DeleteConfig } from 'keypo-sdk';
 import { baseSepolia } from 'viem/chains';
 import { getWalletClientAndAuthorization } from './utils/wallet-utils';
 import { v4 as uuidv4 } from 'uuid';
@@ -19,6 +19,9 @@ export default function Home() {
     encryptInput: "",
     encryptDone: false,
     decryptInput: "",
+    shareInput1: "",
+    shareInput2: "",
+    deleteInput: "",
   });
 
   const userWallet = wallets.find(
@@ -108,6 +111,45 @@ export default function Home() {
     console.log("result", result);
   }
 
+  async function handleShare(dataIdentifier: string, recipientAddress: string) {
+    console.log("Share input 1:", dataIdentifier);
+    console.log("Share input 2:", recipientAddress);
+    // Placeholder for share logic
+
+    const { walletClient, authorization } = await getWalletClientAndAuthorization(userWallet, signAuthorization);
+    const config: ShareConfig = {
+      permissionsRegistryContractAddress: permissionsRegistryContractAddress || "",
+      bundlerRpcUrl: bundlerRpcUrl || "",
+    };
+    const result = await shareData(
+      dataIdentifier,
+      walletClient as any,
+      recipientAddress,
+      config,
+      authorization,
+      true
+    );
+    console.log("result", result);
+  }
+
+  async function handleDelete(dataIdentifier: string) {
+    console.log("Delete input:", dataIdentifier);
+    // Placeholder for delete logic
+    const { walletClient, authorization } = await getWalletClientAndAuthorization(userWallet, signAuthorization);
+    const config: DeleteConfig = {
+      permissionsRegistryContractAddress: permissionsRegistryContractAddress || "",
+      bundlerRpcUrl: bundlerRpcUrl || "",
+    };
+    const result = await deleteData(
+      dataIdentifier,
+      walletClient as any,
+      authorization,
+      config,
+      true
+    );
+    console.log("result", result);
+  }
+
   function renderStatus() {
     if (uiState.status === "setup") return <StatusStep text="Setting up privy wallet for ethers v5..." />;
     if (uiState.status === "lit") return <StatusStep text="Getting Lit session..." />;
@@ -172,6 +214,45 @@ export default function Home() {
             </div>
           )}
           <div className="mt-6">{renderStatus()}</div>
+          <div className="mt-8 flex flex-col items-center gap-2">
+            <input
+              type="text"
+              className="border px-3 py-2 rounded w-64"
+              placeholder="Share field 1"
+              value={uiState.shareInput1}
+              onChange={e => setUiState(prev => ({ ...prev, shareInput1: e.target.value }))}
+            />
+            <input
+              type="text"
+              className="border px-3 py-2 rounded w-64"
+              placeholder="Share field 2"
+              value={uiState.shareInput2}
+              onChange={e => setUiState(prev => ({ ...prev, shareInput2: e.target.value }))}
+            />
+            <button
+              className="px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+              onClick={() => handleShare(uiState.shareInput1, uiState.shareInput2)}
+              disabled={!uiState.shareInput1 || !uiState.shareInput2}
+            >
+              Share
+            </button>
+          </div>
+          <div className="mt-8 flex flex-col items-center gap-2">
+            <input
+              type="text"
+              className="border px-3 py-2 rounded w-64"
+              placeholder="Enter string to delete"
+              value={uiState.deleteInput}
+              onChange={e => setUiState(prev => ({ ...prev, deleteInput: e.target.value }))}
+            />
+            <button
+              className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+              onClick={() => handleDelete(uiState.deleteInput)}
+              disabled={!uiState.deleteInput}
+            >
+              Delete
+            </button>
+          </div>
         </>
       )}
     </main>
